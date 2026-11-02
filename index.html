@@ -1,50 +1,96 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#071b35">
 <title>RPD AFRICA AI</title>
 <style>
 *{box-sizing:border-box}
-body{margin:0;font-family:Arial,sans-serif;background:#071b35;color:white}
-header{background:#102d50;padding:22px;text-align:center}
+body{margin:0;background:#071b35;color:white;font-family:Arial,sans-serif}
+header{background:#102d50;padding:25px;text-align:center}
 h1{color:#39d5ff;margin:0}
-main{padding:20px;max-width:500px;margin:auto}
-.card{background:#12365b;padding:20px;border-radius:15px;margin:18px 0}
+main{max-width:500px;margin:auto;padding:18px}
+.card{background:#12365b;padding:20px;border-radius:15px;margin:16px 0}
+input{width:100%;padding:14px;margin:8px 0;border:0;border-radius:8px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:9px;background:#00a9d6;color:white;font-weight:bold;font-size:16px}
 .balance{font-size:30px;color:#38e5a1;font-weight:bold}
-button{background:#00a9d6;color:white;border:0;padding:14px;border-radius:9px;width:100%;font-size:16px;margin-top:10px}
-input{width:100%;padding:13px;border-radius:8px;border:0;margin:8px 0}
 small{color:#c7d8e8}
+.hidden{display:none}
+nav{display:flex;gap:8px;flex-wrap:wrap}
+nav button{flex:1}
 </style>
 </head>
 <body>
 <header>
 <h1>RPD AFRICA AI</h1>
-<p>Bienvenue sur votre plateforme</p>
+<p>Innovation • Missions • Récompenses</p>
 </header>
 <main>
+
+<section id="login" class="card">
+<h2>Bienvenue</h2>
+<p>Connectez-vous à votre espace personnel.</p>
+<input id="name" placeholder="Nom complet">
+<input id="email" type="email" placeholder="Adresse e-mail">
+<button onclick="login()">Accéder à mon espace</button>
+<small>Version de démonstration. Aucun compte réel n'est créé.</small>
+</section>
+
+<section id="dashboard" class="hidden">
 <div class="card">
-<h2>Mon compte</h2>
+<h2>Mon tableau de bord</h2>
+<p>Bienvenue <strong id="username"></strong></p>
 <p>Solde disponible</p>
 <div class="balance">0 FCFA</div>
-<small>Solde de démonstration</small>
+<small>Solde de démonstration uniquement</small>
 </div>
-<div class="card">
-<h2>Créer un compte</h2>
-<input type="text" placeholder="Nom complet">
-<input type="email" placeholder="Adresse e-mail">
-<input type="password" placeholder="Mot de passe">
-<button onclick="alert('Inscription de démonstration')">S'inscrire</button>
+
+<nav>
+<button onclick="show('missions')">Missions</button>
+<button onclick="show('history')">Historique</button>
+<button onclick="logout()">Déconnexion</button>
+</nav>
+
+<div id="missions" class="card">
+<h2>Mes missions</h2>
+<p>Découvrez les activités proposées par la plateforme.</p>
+<p>Aucune mission disponible pour le moment.</p>
 </div>
-<div class="card">
-<h2>Mes activités</h2>
-<p>Récompenses après validation</p>
-<p>Historique des opérations</p>
-<button onclick="alert('Fonctionnalité en préparation')">Voir mes activités</button>
+
+<div id="history" class="card hidden">
+<h2>Historique</h2>
+<p>Aucune opération enregistrée.</p>
 </div>
-<p style="text-align:center"><small>RPD AFRICA AI © 2026</small></p>
+</section>
+
+<footer style="text-align:center;padding:20px">
+<small>RPD AFRICA AI © 2026</small>
+</footer>
 </main>
+
+<script>
+function login(){
+const name=document.getElementById('name').value.trim();
+const email=document.getElementById('email').value.trim();
+if(!name || !email || !email.includes('@')){
+alert('Veuillez saisir votre nom et une adresse e-mail valide.');
+return;
+}
+document.getElementById('username').textContent=name;
+document.getElementById('login').classList.add('hidden');
+document.getElementById('dashboard').classList.remove('hidden');
+}
+function show(section){
+document.getElementById('missions').classList.add('hidden');
+document.getElementById('history').classList.add('hidden');
+document.getElementById(section).classList.remove('hidden');
+}
+function logout(){
+document.getElementById('dashboard').classList.add('hidden');
+document.getElementById('login').classList.remove('hidden');
+}
+</script>
 </body>
-</html>
+  </html>
+  
