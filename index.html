@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -5,92 +6,221 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="theme-color" content="#071b35">
 <title>RPD AFRICA AI</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#071b35;color:white;font-family:Arial,sans-serif}
-header{background:#102d50;padding:25px;text-align:center}
-h1{color:#39d5ff;margin:0}
-main{max-width:500px;margin:auto;padding:18px}
-.card{background:#12365b;padding:20px;border-radius:15px;margin:16px 0}
-input{width:100%;padding:14px;margin:8px 0;border:0;border-radius:8px}
-button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:9px;background:#00a9d6;color:white;font-weight:bold;font-size:16px}
-.balance{font-size:30px;color:#38e5a1;font-weight:bold}
-small{color:#c7d8e8}
+header{background:#102d50;padding:25px;text-align:center;border-bottom:2px solid #d5aa45}
+h1{color:#e8bd58;margin:0}
+.gold{color:#e8bd58}
+main{max-width:480px;margin:25px auto;padding:15px}
+.card{background:#102d50;border:1px solid #bd9745;border-radius:15px;padding:22px;margin-bottom:18px}
+input{width:100%;padding:14px;margin:8px 0;border-radius:8px;border:1px solid #bd9745;background:#071b35;color:white;font-size:16px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:8px;background:#d5aa45;color:#071b35;font-weight:bold;font-size:16px}
+button.secondary{background:#23486b;color:white;border:1px solid #d5aa45}
+button:disabled{opacity:.5}
+small{color:#c5d3e0}
 .hidden{display:none}
-nav{display:flex;gap:8px;flex-wrap:wrap}
-nav button{flex:1}
+.stat{font-size:28px;color:#e8bd58;font-weight:bold}
+footer{text-align:center;color:#9eafc1;padding:25px;font-size:12px}
+#message{padding:10px;color:#f3cc6b}
 </style>
 </head>
 <body>
+
 <header>
 <h1>RPD AFRICA AI</h1>
-<p>Innovation • Missions • Récompenses</p>
+<p class="gold">Innovation • Missions • Récompenses</p>
+<p>Bienvenue dans votre espace personnel</p>
 </header>
+
 <main>
 
-<section id="login" class="card">
-<h2>Bienvenue</h2>
-<p>Connectez-vous à votre espace personnel.</p>
-<input id="name" placeholder="Nom complet">
-<input id="email" type="email" placeholder="Adresse e-mail">
-<button onclick="login()">Accéder à mon espace</button>
-<small>Version de démonstration. Aucun compte réel n'est créé.</small>
-</section>
-
-<section id="dashboard" class="hidden">
+<div id="auth">
 <div class="card">
-<h2>Mon tableau de bord</h2>
-<p>Bienvenue <strong id="username"></strong></p>
-<p>Solde disponible</p>
-<div class="balance">0 FCFA</div>
-<small>Solde de démonstration uniquement</small>
+<h2 class="gold">Créer un compte</h2>
+<input id="fullname" placeholder="Nom complet">
+<input id="phone" placeholder="Numéro de téléphone">
+<input id="email" type="email" placeholder="Adresse e-mail">
+<input id="password" type="password" placeholder="Mot de passe">
+<button onclick="signup()">Créer mon compte</button>
 </div>
 
-<nav>
-<button onclick="show('missions')">Missions</button>
-<button onclick="show('history')">Historique</button>
-<button onclick="logout()">Déconnexion</button>
-</nav>
-
-<div id="missions" class="card">
-<h2>Mes missions</h2>
-<p>Découvrez les activités proposées par la plateforme.</p>
-<p>Aucune mission disponible pour le moment.</p>
+<div class="card">
+<h2 class="gold">Connexion</h2>
+<input id="loginEmail" type="email" placeholder="Adresse e-mail">
+<input id="loginPassword" type="password" placeholder="Mot de passe">
+<button onclick="login()">Se connecter</button>
+</div>
 </div>
 
-<div id="history" class="card hidden">
-<h2>Historique</h2>
-<p>Aucune opération enregistrée.</p>
+<div id="dashboard" class="hidden">
+<div class="card">
+<h2 class="gold">Bienvenue !</h2>
+<p id="userName"></p>
+<p>Votre solde</p>
+<div class="stat" id="balance">0 FCFA</div>
+<small>Solde affiché selon les données enregistrées.</small>
 </div>
-</section>
 
-<footer style="text-align:center;padding:20px">
-<small>RPD AFRICA AI © 2026</small>
-</footer>
+<div class="card">
+<h3 class="gold">Mon profil</h3>
+<p id="profileEmail"></p>
+<p id="profilePhone"></p>
+<p id="profileRole"></p>
+</div>
+
+<div class="card">
+<h3 class="gold">Mes récompenses</h3>
+<p>Les récompenses sont affichées uniquement après validation effective des missions.</p>
+<p>Aucune récompense n'est garantie avant validation.</p>
+</div>
+
+<button class="secondary" onclick="logout()">Se déconnecter</button>
+</div>
+
+<div id="message"></div>
 </main>
 
+<footer>RPD AFRICA AI © 2026<br>Innovation • Confiance • Transparence</footer>
+
 <script>
-function login(){
-const name=document.getElementById('name').value.trim();
-const email=document.getElementById('email').value.trim();
-if(!name || !email || !email.includes('@')){
-alert('Veuillez saisir votre nom et une adresse e-mail valide.');
-return;
+const SUPABASE_URL = "https://pnsniujktpmtxfaozydp.supabase.co";
+const SUPABASE_KEY = "sb_publishable_F7EkJFwDSMNch0wvcdkuug_-zJQxL8T";
+
+const db = window.supabase.createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY
+);
+
+function message(text){
+  document.getElementById("message").textContent = text;
 }
-document.getElementById('username').textContent=name;
-document.getElementById('login').classList.add('hidden');
-document.getElementById('dashboard').classList.remove('hidden');
+
+async function signup(){
+  const name = document.getElementById("fullname").value.trim();
+  const phone = document.getElementById("phone").value.trim();
+  const email = document.getElementById("email").value.trim();
+  const password = document.getElementById("password").value;
+
+  if(!name || !phone || !email || !password){
+    message("Remplis tous les champs.");
+    return;
+  }
+
+  if(password.length < 6){
+    message("Le mot de passe doit contenir au moins 6 caractères.");
+    return;
+  }
+
+  message("Création du compte en cours...");
+
+  const {data,error} = await db.auth.signUp({
+    email,
+    password,
+    options:{
+      data:{
+        full_name:name,
+        phone:phone
+      }
+    }
+  });
+
+  if(error){
+    message(error.message);
+    return;
+  }
+
+  if(data.session){
+    await loadDashboard();
+  }else{
+    message("Compte créé. Vérifie ta boîte e-mail pour confirmer ton inscription.");
+  }
 }
-function show(section){
-document.getElementById('missions').classList.add('hidden');
-document.getElementById('history').classList.add('hidden');
-document.getElementById(section).classList.remove('hidden');
+
+async function login(){
+  const email = document.getElementById("loginEmail").value.trim();
+  const password = document.getElementById("loginPassword").value;
+
+  if(!email || !password){
+    message("Entre ton e-mail et ton mot de passe.");
+    return;
+  }
+
+  message("Connexion en cours...");
+
+  const {error} = await db.auth.signInWithPassword({
+    email,
+    password
+  });
+
+  if(error){
+    message(error.message);
+    return;
+  }
+
+  await loadDashboard();
 }
-function logout(){
-document.getElementById('dashboard').classList.add('hidden');
-document.getElementById('login').classList.remove('hidden');
+
+async function loadDashboard(){
+  const {data:{user},error:authError} = await db.auth.getUser();
+
+  if(authError || !user){
+    message("Impossible de retrouver ton compte.");
+    return;
+  }
+
+  document.getElementById("auth").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+
+  document.getElementById("profileEmail").textContent =
+    "E-mail : " + (user.email || "");
+
+  const {data:profile,error} = await db
+    .from("profiles")
+    .select("full_name,phone,role,balance")
+    .eq("id",user.id)
+    .maybeSingle();
+
+  if(error){
+    message("Connexion réussie, mais le profil n'est pas accessible. Vérifie les autorisations Supabase.");
+    return;
+  }
+
+  if(profile){
+    document.getElementById("userName").textContent =
+      "Bonjour " + (profile.full_name || user.user_metadata.full_name || "");
+
+    document.getElementById("profilePhone").textContent =
+      "Téléphone : " + (profile.phone || user.user_metadata.phone || "Non renseigné");
+
+    document.getElementById("profileRole").textContent =
+      "Rôle : " + (profile.role || "Utilisateur");
+
+    document.getElementById("balance").textContent =
+      Number(profile.balance || 0).toLocaleString("fr-FR") + " FCFA";
+  }else{
+    document.getElementById("userName").textContent =
+      "Bonjour " + (user.user_metadata.full_name || "");
+
+    document.getElementById("balance").textContent = "0 FCFA";
+    message("Compte connecté. Profil à initialiser dans Supabase.");
+  }
 }
+
+async function logout(){
+  await db.auth.signOut();
+  document.getElementById("dashboard").classList.add("hidden");
+  document.getElementById("auth").classList.remove("hidden");
+  message("Tu es déconnecté.");
+}
+
+db.auth.onAuthStateChange((event,session)=>{
+  if(session && event === "SIGNED_IN"){
+    setTimeout(loadDashboard,0);
+  }
+});
+
 </script>
 </body>
-  </html>
-  
+</html>
