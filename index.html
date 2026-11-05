@@ -13,21 +13,26 @@ body{margin:0;background:#071b35;color:white;font-family:Arial,sans-serif}
 header{background:#102d50;padding:22px;text-align:center;border-bottom:2px solid #d5aa45}
 h1,.gold{color:#e8bd58}
 h1{margin:0}
-main{max-width:480px;margin:20px auto;padding:15px}
+main{max-width:520px;margin:20px auto;padding:15px}
 .card{background:#102d50;border:1px solid #bd9745;border-radius:15px;padding:20px;margin-bottom:17px}
 input,select{width:100%;padding:14px;margin:8px 0;border-radius:8px;border:1px solid #bd9745;background:#071b35;color:white;font-size:16px}
-button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:8px;background:#d5aa45;color:#071b35;font-weight:bold;font-size:16px}
+button{width:100%;padding:14px;margin-top:10px;border:0;border-radius:8px;background:#d5aa45;color:#071b35;font-weight:bold;font-size:16px;cursor:pointer}
 button.secondary{background:#23486b;color:white;border:1px solid #d5aa45}
+button.danger{background:#a83c45;color:white}
 button:disabled{opacity:.5}
 small{color:#c5d3e0}
-.hidden{display:none}
+.hidden{display:none!important}
 .stat{font-size:28px;color:#e8bd58;font-weight:bold}
 footer{text-align:center;color:#9eafc1;padding:25px;font-size:12px}
-#message{padding:10px;color:#f3cc6b}
+#message{padding:10px;color:#f3cc6b;overflow-wrap:anywhere}
 .operation{border-bottom:1px solid #52677e;padding:12px 0}
 .pending{color:#f3cc6b}
-.approved,.paid{color:#65dc91}
+.approved{color:#65dc91}
 .rejected{color:#ff8585}
+.admin-item{background:#071b35;border:1px solid #52677e;padding:14px;border-radius:10px;margin:12px 0}
+.admin-item p{overflow-wrap:anywhere}
+.buttons{display:flex;gap:8px}
+.buttons button{flex:1}
 </style>
 </head>
 <body>
@@ -78,48 +83,51 @@ footer{text-align:center;color:#9eafc1;padding:25px;font-size:12px}
 <div class="card">
 <h3 class="gold">Faire un dépôt</h3>
 <p>Montant minimum : <strong>5 000 FCFA</strong></p>
-
 <label>Moyen de paiement</label>
 <select id="depositMethod" onchange="showPayment()">
 <option value="Orange Money">Orange Money</option>
 <option value="Wave">Wave</option>
 <option value="MTN Money">MTN Money</option>
 </select>
-
 <div class="card">
 <p class="gold">Numéro de réception du paiement</p>
 <p id="paymentNumber">0759999997</p>
-<small>Effectue le paiement sur ce numéro, puis remplis les informations ci-dessous.</small>
+<small>Effectue le paiement puis remplis les informations ci-dessous.</small>
 </div>
-
 <input id="depositAmount" type="number" min="5000" placeholder="Montant du dépôt en FCFA">
 <input id="depositPhone" type="tel" placeholder="Ton numéro utilisé pour payer">
-
 <button onclick="submitDeposit()">Envoyer ma demande de dépôt</button>
-<small>Ton dépôt sera crédité uniquement après vérification réelle du paiement par l'administrateur.</small>
+<small>Le crédit intervient uniquement après vérification réelle du paiement.</small>
 </div>
 
 <div class="card">
 <h3 class="gold">Demander un retrait</h3>
-
 <label>Moyen de réception</label>
 <select id="withdrawMethod">
 <option value="Orange Money">Orange Money</option>
 <option value="Wave">Wave</option>
 <option value="MTN Money">MTN Money</option>
 </select>
-
 <input id="withdrawAmount" type="number" min="1" placeholder="Montant du retrait en FCFA">
 <input id="withdrawPhone" type="tel" placeholder="Numéro pour recevoir le retrait">
-
 <button onclick="submitWithdrawal()">Envoyer ma demande de retrait</button>
-<small>Les demandes sont soumises à vérification et à validation manuelle.</small>
+<small>Les demandes sont soumises à vérification.</small>
 </div>
 
 <div class="card">
 <h3 class="gold">Mon historique</h3>
-<div id="history">Chargement de l'historique...</div>
+<div id="history">Chargement...</div>
 <button class="secondary" onclick="loadHistory()">Actualiser l'historique</button>
+</div>
+
+<div id="adminPanel" class="hidden">
+<div class="card">
+<h2 class="gold">Administration</h2>
+<p>Gestion des demandes de paiement</p>
+<p>Demandes en attente : <strong id="pendingCount">0</strong></p>
+<button onclick="loadAdminRequests()">Actualiser les demandes</button>
+<div id="adminRequests">Chargement...</div>
+</div>
 </div>
 
 <div class="card">
@@ -147,325 +155,391 @@ const SUPABASE_KEY =
 "sb_publishable_F7EkJFwDSMNch0wvcdkuug_-zJQxL8T";
 
 const db = window.supabase.createClient(
-SUPABASE_URL,
-SUPABASE_KEY
+SUPABASE_URL,SUPABASE_KEY
 );
 
-let currentUser = null;
-let currentBalance = 0;
+let currentUser=null;
+let currentBalance=0;
+let isAdmin=false;
 
 function message(text){
-document.getElementById("message").textContent = text;
+document.getElementById("message").textContent=text;
 }
 
 function money(value){
-return Number(value || 0).toLocaleString("fr-FR") + " FCFA";
+return Number(value||0).toLocaleString("fr-FR")+" FCFA";
 }
 
 function showPayment(){
-const method = document.getElementById("depositMethod").value;
-
-const numbers = {
+const method=document.getElementById("depositMethod").value;
+const numbers={
 "Orange Money":"0759999997",
 "Wave":"0544251966",
 "MTN Money":"0544251966"
 };
-
-document.getElementById("paymentNumber").textContent =
-numbers[method];
+document.getElementById("paymentNumber").textContent=numbers[method];
 }
 
 async function signup(){
-const name = document.getElementById("fullname").value.trim();
-const phone = document.getElementById("phone").value.trim();
-const email = document.getElementById("email").value.trim();
-const password = document.getElementById("password").value;
+const name=document.getElementById("fullname").value.trim();
+const phone=document.getElementById("phone").value.trim();
+const email=document.getElementById("email").value.trim();
+const password=document.getElementById("password").value;
 
-if(!name || !phone || !email || !password){
+if(!name||!phone||!email||!password){
 message("Remplis tous les champs.");
 return;
 }
-
-if(password.length < 6){
+if(password.length<6){
 message("Le mot de passe doit contenir au moins 6 caractères.");
 return;
 }
 
-message("Création du compte en cours...");
-
-const {data,error} = await db.auth.signUp({
-email,
-password,
-options:{
-data:{
-full_name:name,
-phone:phone
-}
-}
+message("Création du compte...");
+const {data,error}=await db.auth.signUp({
+email,password,
+options:{data:{full_name:name,phone:phone}}
 });
 
-if(error){
-message(error.message);
-return;
-}
+if(error){message(error.message);return;}
 
 if(data.session){
 await loadDashboard();
 }else{
-message("Compte créé. Vérifie ta boîte e-mail pour confirmer ton inscription.");
+message("Compte créé. Vérifie ton e-mail pour confirmer l'inscription.");
 }
 }
 
 async function login(){
-const email = document.getElementById("loginEmail").value.trim();
-const password = document.getElementById("loginPassword").value;
+const email=document.getElementById("loginEmail").value.trim();
+const password=document.getElementById("loginPassword").value;
 
-if(!email || !password){
+if(!email||!password){
 message("Entre ton e-mail et ton mot de passe.");
 return;
 }
 
 message("Connexion en cours...");
+const {error}=await db.auth.signInWithPassword({email,password});
 
-const {error} = await db.auth.signInWithPassword({
-email,
-password
-});
-
-if(error){
-message(error.message);
-return;
-}
-
+if(error){message(error.message);return;}
 await loadDashboard();
 }
 
 async function loadDashboard(){
-const {data:{user},error:authError} = await db.auth.getUser();
+const {data:{user},error:authError}=await db.auth.getUser();
 
-if(authError || !user){
+if(authError||!user){
 message("Impossible de retrouver ton compte.");
 return;
 }
 
-currentUser = user;
+currentUser=user;
 
-document.getElementById("auth").classList.add("hidden");
-document.getElementById("dashboard").classList.remove("hidden");
-
-document.getElementById("profileEmail").textContent =
-"E-mail : " + (user.email || "");
-
-const {data:profile,error} = await db
+const {data:profile,error}=await db
 .from("profiles")
 .select("full_name,phone,role,balance")
 .eq("id",user.id)
 .maybeSingle();
 
 if(error){
-message("Profil inaccessible. Vérifie les autorisations Supabase.");
+message("Erreur de chargement du profil : "+error.message);
 return;
 }
 
-if(profile){
-currentBalance = Number(profile.balance || 0);
-
-document.getElementById("userName").textContent =
-"Bonjour " + (profile.full_name || user.user_metadata.full_name || "");
-
-document.getElementById("profilePhone").textContent =
-"Téléphone : " + (profile.phone || user.user_metadata.phone || "Non renseigné");
-
-document.getElementById("profileRole").textContent =
-"Rôle : " + (profile.role || "Utilisateur");
-
-document.getElementById("balance").textContent =
-money(currentBalance);
-}else{
-currentBalance = 0;
-
-document.getElementById("userName").textContent =
-"Bonjour " + (user.user_metadata.full_name || "");
-
-document.getElementById("balance").textContent = "0 FCFA";
-message("Profil à initialiser dans Supabase.");
+if(!profile){
+message("Profil introuvable. Contacte l'administrateur.");
+return;
 }
+
+currentBalance=Number(profile.balance||0);
+isAdmin=profile.role==="admin";
+
+document.getElementById("auth").classList.add("hidden");
+document.getElementById("dashboard").classList.remove("hidden");
+
+document.getElementById("userName").textContent=
+"Bonjour "+(profile.full_name||user.user_metadata.full_name||"");
+
+document.getElementById("profileEmail").textContent=
+"E-mail : "+(user.email||"");
+
+document.getElementById("profilePhone").textContent=
+"Téléphone : "+(profile.phone||"Non renseigné");
+
+document.getElementById("profileRole").textContent=
+"Rôle : "+(profile.role||"Utilisateur");
+
+document.getElementById("balance").textContent=money(currentBalance);
+
+document.getElementById("adminPanel").classList.toggle("hidden",!isAdmin);
 
 showPayment();
 await loadHistory();
+
+if(isAdmin){
+await loadAdminRequests();
+}
+}
+
+async function refreshBalance(){
+const {data,error}=await db
+.from("profiles")
+.select("balance")
+.eq("id",currentUser.id)
+.single();
+
+if(!error&&data){
+currentBalance=Number(data.balance||0);
+document.getElementById("balance").textContent=money(currentBalance);
+}
 }
 
 async function submitDeposit(){
-if(!currentUser){
-message("Connecte-toi d'abord.");
-return;
+if(!currentUser){message("Connecte-toi d'abord.");return;}
+
+const method=document.getElementById("depositMethod").value;
+const amount=Number(document.getElementById("depositAmount").value);
+const phone=document.getElementById("depositPhone").value.trim();
+
+if(!Number.isFinite(amount)||amount<5000){
+message("Le dépôt minimum est de 5 000 FCFA.");return;
 }
+if(!phone){message("Entre ton numéro de paiement.");return;}
 
-const method = document.getElementById("depositMethod").value;
-const amount = Number(document.getElementById("depositAmount").value);
-const phone = document.getElementById("depositPhone").value.trim();
+message("Envoi de la demande...");
 
-if(!Number.isFinite(amount) || amount < 5000){
-message("Le dépôt minimum est de 5 000 FCFA.");
-return;
-}
-
-if(!phone){
-message("Entre ton numéro utilisé pour le paiement.");
-return;
-}
-
-message("Envoi de la demande de dépôt...");
-
-const {error} = await db
-.from("payment_requests")
-.insert({
+const {error}=await db.from("payment_requests").insert({
 user_id:currentUser.id,
 request_type:"deposit",
 payment_method:method,
-amount:amount,
-phone:phone,
+amount,
+phone,
 status:"pending"
 });
 
-if(error){
-message("Erreur : " + error.message);
-return;
-}
+if(error){message("Erreur : "+error.message);return;}
 
-document.getElementById("depositAmount").value = "";
-document.getElementById("depositPhone").value = "";
-
-message("Demande envoyée. Ton paiement sera vérifié avant le crédit du solde.");
+document.getElementById("depositAmount").value="";
+document.getElementById("depositPhone").value="";
+message("Demande envoyée. Paiement en attente de vérification.");
 
 await loadHistory();
+if(isAdmin) await loadAdminRequests();
 }
 
 async function submitWithdrawal(){
-if(!currentUser){
-message("Connecte-toi d'abord.");
-return;
+if(!currentUser){message("Connecte-toi d'abord.");return;}
+
+const method=document.getElementById("withdrawMethod").value;
+const amount=Number(document.getElementById("withdrawAmount").value);
+const phone=document.getElementById("withdrawPhone").value.trim();
+
+if(!Number.isFinite(amount)||amount<=0){
+message("Montant de retrait invalide.");return;
 }
-
-const method = document.getElementById("withdrawMethod").value;
-const amount = Number(document.getElementById("withdrawAmount").value);
-const phone = document.getElementById("withdrawPhone").value.trim();
-
-if(!Number.isFinite(amount) || amount <= 0){
-message("Entre un montant de retrait valide.");
-return;
+if(amount>currentBalance){
+message("Solde disponible insuffisant.");return;
 }
+if(!phone){message("Entre ton numéro de réception.");return;}
 
-if(amount > currentBalance){
-message("Ton solde disponible est insuffisant.");
-return;
-}
+message("Envoi de la demande...");
 
-if(!phone){
-message("Entre le numéro de réception.");
-return;
-}
-
-message("Envoi de la demande de retrait...");
-
-const {error} = await db
-.from("payment_requests")
-.insert({
+const {error}=await db.from("payment_requests").insert({
 user_id:currentUser.id,
 request_type:"withdrawal",
 payment_method:method,
-amount:amount,
-phone:phone,
+amount,
+phone,
 status:"pending"
 });
 
-if(error){
-message("Erreur : " + error.message);
-return;
-}
+if(error){message("Erreur : "+error.message);return;}
 
-document.getElementById("withdrawAmount").value = "";
-document.getElementById("withdrawPhone").value = "";
-
-message("Demande de retrait envoyée. Elle attend la validation de l'administrateur.");
+document.getElementById("withdrawAmount").value="";
+document.getElementById("withdrawPhone").value="";
+message("Demande envoyée. Elle attend la validation.");
 
 await loadHistory();
+if(isAdmin) await loadAdminRequests();
 }
 
 async function loadHistory(){
-if(!currentUser) return;
+if(!currentUser)return;
 
-const history = document.getElementById("history");
-history.textContent = "Chargement...";
+const history=document.getElementById("history");
+history.textContent="Chargement...";
 
-const {data,error} = await db
+const {data,error}=await db
 .from("payment_requests")
 .select("request_type,payment_method,amount,phone,status,created_at")
 .eq("user_id",currentUser.id)
 .order("created_at",{ascending:false});
 
 if(error){
-history.textContent = "Impossible de charger l'historique.";
+history.textContent="Erreur : "+error.message;
 return;
 }
 
-if(!data || data.length === 0){
-history.textContent = "Aucune opération pour le moment.";
+if(!data||data.length===0){
+history.textContent="Aucune opération pour le moment.";
 return;
 }
 
-history.innerHTML = "";
+history.replaceChildren();
 
 data.forEach(item=>{
-const operation = document.createElement("div");
-operation.className = "operation";
+const operation=document.createElement("div");
+operation.className="operation";
 
-const title = document.createElement("strong");
-title.textContent =
-item.request_type === "deposit" ? "Dépôt" : "Retrait";
+const title=document.createElement("strong");
+title.textContent=item.request_type==="deposit"?"Dépôt":"Retrait";
 
-const details = document.createElement("p");
-details.textContent =
-item.payment_method + " • " + money(item.amount);
+const details=document.createElement("p");
+details.textContent=item.payment_method+" • "+money(item.amount);
 
-const phone = document.createElement("small");
-phone.textContent = "Numéro : " + item.phone;
+const phone=document.createElement("small");
+phone.textContent="Numéro : "+item.phone;
 
-const status = document.createElement("p");
-status.className = item.status;
-const labels = {
+const status=document.createElement("p");
+status.className=item.status;
+const labels={
 pending:"En attente de validation",
 approved:"Approuvé",
-rejected:"Refusé",
-paid:"Payé"
+rejected:"Refusé"
 };
-status.textContent = "Statut : " + (labels[item.status] || item.status);
+status.textContent="Statut : "+(labels[item.status]||item.status);
 
-const date = document.createElement("small");
-date.textContent = new Date(item.created_at).toLocaleString("fr-FR");
+const date=document.createElement("small");
+date.textContent=new Date(item.created_at).toLocaleString("fr-FR");
 
 operation.append(title,details,phone,status,date);
 history.appendChild(operation);
 });
 }
 
+async function loadAdminRequests(){
+if(!isAdmin)return;
+
+const area=document.getElementById("adminRequests");
+area.textContent="Chargement des demandes...";
+
+const {data,error}=await db
+.from("payment_requests")
+.select("id,user_id,request_type,payment_method,amount,phone,status,created_at")
+.eq("status","pending")
+.order("created_at",{ascending:true});
+
+if(error){
+area.textContent="Erreur de lecture : "+error.message;
+return;
+}
+
+document.getElementById("pendingCount").textContent=data.length;
+
+if(!data.length){
+area.textContent="Aucune demande en attente.";
+return;
+}
+
+area.replaceChildren();
+
+data.forEach(item=>{
+const box=document.createElement("div");
+box.className="admin-item";
+
+const title=document.createElement("strong");
+title.className="gold";
+title.textContent=item.request_type==="deposit"?"Demande de dépôt":"Demande de retrait";
+
+const info=document.createElement("p");
+info.textContent=
+"Montant : "+money(item.amount)+
+"\nMoyen : "+item.payment_method+
+"\nTéléphone : "+item.phone+
+"\nUtilisateur : "+item.user_id+
+"\nDate : "+new Date(item.created_at).toLocaleString("fr-FR");
+
+const buttons=document.createElement("div");
+buttons.className="buttons";
+
+const approve=document.createElement("button");
+approve.textContent="Approuver";
+approve.onclick=()=>decideRequest(item,"approved");
+
+const reject=document.createElement("button");
+reject.textContent="Refuser";
+reject.className="danger";
+reject.onclick=()=>decideRequest(item,"rejected");
+
+buttons.append(approve,reject);
+box.append(title,info,buttons);
+area.appendChild(box);
+});
+}
+
+async function decideRequest(item,decision){
+if(!isAdmin)return;
+
+if(decision==="approved"){
+let confirmation;
+
+if(item.request_type==="deposit"){
+confirmation=confirm(
+"Confirmer que tu as réellement reçu "+money(item.amount)+
+" sur "+item.payment_method+" ?"
+);
+}else{
+confirmation=confirm(
+"Confirmer que tu as déjà effectué le transfert de "+
+money(item.amount)+" vers le numéro "+item.phone+" ?"
+);
+}
+
+if(!confirmation)return;
+}
+
+const note=prompt("Note administrative (facultatif) :")||null;
+
+if(decision==="rejected"&&
+!confirm("Confirmer le refus de cette demande ?"))return;
+
+message("Traitement de la demande...");
+
+const {data,error}=await db.rpc("validate_payment_request",{
+p_request_id:item.id,
+p_decision:decision,
+p_admin_note:note
+});
+
+if(error){
+message("Erreur de validation : "+error.message);
+return;
+}
+
+message(data||"Opération traitée.");
+await loadAdminRequests();
+await refreshBalance();
+await loadHistory();
+}
+
 async function logout(){
 await db.auth.signOut();
-currentUser = null;
-currentBalance = 0;
+currentUser=null;
+currentBalance=0;
+isAdmin=false;
 
 document.getElementById("dashboard").classList.add("hidden");
 document.getElementById("auth").classList.remove("hidden");
-
 message("Tu es déconnecté.");
 }
 
 db.auth.onAuthStateChange((event,session)=>{
-if(session && event === "SIGNED_IN"){
-setTimeout(loadDashboard,0);
+if(session&&(event==="SIGNED_IN"||event==="INITIAL_SESSION")){
+setTimeout(()=>loadDashboard(),0);
 }
-if(event === "SIGNED_OUT"){
-currentUser = null;
+if(event==="SIGNED_OUT"){
+currentUser=null;
 }
 });
 </script>
