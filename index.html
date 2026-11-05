@@ -30,7 +30,7 @@ footer{text-align:center;color:#9eafc1;padding:25px;font-size:12px}
 .approved{color:#65dc91}
 .rejected{color:#ff8585}
 .admin-item{background:#071b35;border:1px solid #52677e;padding:14px;border-radius:10px;margin:12px 0}
-.admin-item p{overflow-wrap:anywhere}
+.admin-item p{overflow-wrap:anywhere;white-space:pre-line}
 .buttons{display:flex;gap:8px}
 .buttons button{flex:1}
 </style>
@@ -76,40 +76,46 @@ footer{text-align:center;color:#9eafc1;padding:25px;font-size:12px}
 <div class="card">
 <h3 class="gold">Mon profil</h3>
 <p id="profileEmail"></p>
-<p id="profilePhone"></p>
 <p id="profileRole"></p>
 </div>
 
 <div class="card">
 <h3 class="gold">Faire un dépôt</h3>
 <p>Montant minimum : <strong>5 000 FCFA</strong></p>
+
 <label>Moyen de paiement</label>
-<select id="depositMethod" onchange="showPayment()">
+<select id="depositMethod">
 <option value="Orange Money">Orange Money</option>
 <option value="Wave">Wave</option>
 <option value="MTN Money">MTN Money</option>
 </select>
+
 <div class="card">
-<p class="gold">Numéro de réception du paiement</p>
-<p id="paymentNumber">0759999997</p>
-<small>Effectue le paiement puis remplis les informations ci-dessous.</small>
+<p class="gold">Informations de paiement</p>
+<p>Les coordonnées de paiement sont communiquées de manière privée par l'administration.</p>
+<small>Effectue ton paiement uniquement après avoir obtenu les coordonnées officielles.</small>
 </div>
+
 <input id="depositAmount" type="number" min="5000" placeholder="Montant du dépôt en FCFA">
 <input id="depositPhone" type="tel" placeholder="Ton numéro utilisé pour payer">
+
 <button onclick="submitDeposit()">Envoyer ma demande de dépôt</button>
 <small>Le crédit intervient uniquement après vérification réelle du paiement.</small>
 </div>
 
 <div class="card">
 <h3 class="gold">Demander un retrait</h3>
+
 <label>Moyen de réception</label>
 <select id="withdrawMethod">
 <option value="Orange Money">Orange Money</option>
 <option value="Wave">Wave</option>
 <option value="MTN Money">MTN Money</option>
 </select>
+
 <input id="withdrawAmount" type="number" min="1" placeholder="Montant du retrait en FCFA">
 <input id="withdrawPhone" type="tel" placeholder="Numéro pour recevoir le retrait">
+
 <button onclick="submitWithdrawal()">Envoyer ma demande de retrait</button>
 <small>Les demandes sont soumises à vérification.</small>
 </div>
@@ -170,16 +176,6 @@ function money(value){
 return Number(value||0).toLocaleString("fr-FR")+" FCFA";
 }
 
-function showPayment(){
-const method=document.getElementById("depositMethod").value;
-const numbers={
-"Orange Money":"0759999997",
-"Wave":"0544251966",
-"MTN Money":"0544251966"
-};
-document.getElementById("paymentNumber").textContent=numbers[method];
-}
-
 async function signup(){
 const name=document.getElementById("fullname").value.trim();
 const phone=document.getElementById("phone").value.trim();
@@ -190,12 +186,14 @@ if(!name||!phone||!email||!password){
 message("Remplis tous les champs.");
 return;
 }
+
 if(password.length<6){
 message("Le mot de passe doit contenir au moins 6 caractères.");
 return;
 }
 
 message("Création du compte...");
+
 const {data,error}=await db.auth.signUp({
 email,password,
 options:{data:{full_name:name,phone:phone}}
@@ -220,9 +218,11 @@ return;
 }
 
 message("Connexion en cours...");
+
 const {error}=await db.auth.signInWithPassword({email,password});
 
 if(error){message(error.message);return;}
+
 await loadDashboard();
 }
 
@@ -238,7 +238,7 @@ currentUser=user;
 
 const {data:profile,error}=await db
 .from("profiles")
-.select("full_name,phone,role,balance")
+.select("full_name,role,balance")
 .eq("id",user.id)
 .maybeSingle();
 
@@ -264,9 +264,6 @@ document.getElementById("userName").textContent=
 document.getElementById("profileEmail").textContent=
 "E-mail : "+(user.email||"");
 
-document.getElementById("profilePhone").textContent=
-"Téléphone : "+(profile.phone||"Non renseigné");
-
 document.getElementById("profileRole").textContent=
 "Rôle : "+(profile.role||"Utilisateur");
 
@@ -274,7 +271,6 @@ document.getElementById("balance").textContent=money(currentBalance);
 
 document.getElementById("adminPanel").classList.toggle("hidden",!isAdmin);
 
-showPayment();
 await loadHistory();
 
 if(isAdmin){
@@ -303,9 +299,14 @@ const amount=Number(document.getElementById("depositAmount").value);
 const phone=document.getElementById("depositPhone").value.trim();
 
 if(!Number.isFinite(amount)||amount<5000){
-message("Le dépôt minimum est de 5 000 FCFA.");return;
+message("Le dépôt minimum est de 5 000 FCFA.");
+return;
 }
-if(!phone){message("Entre ton numéro de paiement.");return;}
+
+if(!phone){
+message("Entre ton numéro de paiement.");
+return;
+}
 
 message("Envoi de la demande...");
 
@@ -318,10 +319,14 @@ phone,
 status:"pending"
 });
 
-if(error){message("Erreur : "+error.message);return;}
+if(error){
+message("Erreur : "+error.message);
+return;
+}
 
 document.getElementById("depositAmount").value="";
 document.getElementById("depositPhone").value="";
+
 message("Demande envoyée. Paiement en attente de vérification.");
 
 await loadHistory();
@@ -336,12 +341,19 @@ const amount=Number(document.getElementById("withdrawAmount").value);
 const phone=document.getElementById("withdrawPhone").value.trim();
 
 if(!Number.isFinite(amount)||amount<=0){
-message("Montant de retrait invalide.");return;
+message("Montant de retrait invalide.");
+return;
 }
+
 if(amount>currentBalance){
-message("Solde disponible insuffisant.");return;
+message("Solde disponible insuffisant.");
+return;
 }
-if(!phone){message("Entre ton numéro de réception.");return;}
+
+if(!phone){
+message("Entre ton numéro de réception.");
+return;
+}
 
 message("Envoi de la demande...");
 
@@ -354,10 +366,14 @@ phone,
 status:"pending"
 });
 
-if(error){message("Erreur : "+error.message);return;}
+if(error){
+message("Erreur : "+error.message);
+return;
+}
 
 document.getElementById("withdrawAmount").value="";
 document.getElementById("withdrawPhone").value="";
+
 message("Demande envoyée. Elle attend la validation.");
 
 await loadHistory();
@@ -398,22 +414,21 @@ title.textContent=item.request_type==="deposit"?"Dépôt":"Retrait";
 const details=document.createElement("p");
 details.textContent=item.payment_method+" • "+money(item.amount);
 
-const phone=document.createElement("small");
-phone.textContent="Numéro : "+item.phone;
-
 const status=document.createElement("p");
 status.className=item.status;
+
 const labels={
 pending:"En attente de validation",
 approved:"Approuvé",
 rejected:"Refusé"
 };
+
 status.textContent="Statut : "+(labels[item.status]||item.status);
 
 const date=document.createElement("small");
 date.textContent=new Date(item.created_at).toLocaleString("fr-FR");
 
-operation.append(title,details,phone,status,date);
+operation.append(title,details,status,date);
 history.appendChild(operation);
 });
 }
@@ -525,12 +540,14 @@ await loadHistory();
 
 async function logout(){
 await db.auth.signOut();
+
 currentUser=null;
 currentBalance=0;
 isAdmin=false;
 
 document.getElementById("dashboard").classList.add("hidden");
 document.getElementById("auth").classList.remove("hidden");
+
 message("Tu es déconnecté.");
 }
 
@@ -538,6 +555,7 @@ db.auth.onAuthStateChange((event,session)=>{
 if(session&&(event==="SIGNED_IN"||event==="INITIAL_SESSION")){
 setTimeout(()=>loadDashboard(),0);
 }
+
 if(event==="SIGNED_OUT"){
 currentUser=null;
 }
@@ -545,4 +563,5 @@ currentUser=null;
 </script>
 
 </body>
-</html>
+  </html>
+  
